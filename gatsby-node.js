@@ -1,5 +1,7 @@
+const createPaginatedPages = require("gatsby-paginate");
 const path = require("path");
-const _ = require('lodash');
+const _ = require("lodash");
+
 
 exports.createPages = ({
     boundActionCreators, graphql
@@ -23,49 +25,76 @@ exports.createPages = ({
               path
               tags
             }
+            fields {
+                slug
+              }
           }
         }
       }
     }
   `).then(result => {
-    if (result.errors) {
-      return Promise.reject(result.errors);
-    }
+        if (result.errors) {
+            return Promise.reject(result.errors);
+        }
 
-    const posts = result.data.allMarkdownRemark.edges;
+        const posts = result.data.allMarkdownRemark.edges;
 
-    // Create post detail pages
-    posts.forEach(({ node }) => {
-      createPage({
-        path: node.frontmatter.path,
-        component: blogPostTemplate,
-      });
+        //create paginated pages
+        createPaginatedPages({
+            edges: posts,
+            createPage: createPage,
+            pageTemplate: "src/templates/index.js",
+            pageLength: 1, // This is optional and defaults to 10 if not used
+            pathPrefix: "", // This is optional and defaults to an empty string if not used
+            context: {} // This is optional and defaults to an empty object if not used
+        });
+
+        /* Create post detail pages
+        posts.forEach(({
+            node
+        }) => {
+            createPage({
+                path: node.frontmatter.path,
+                component: blogPostTemplate,
+            });
+        });
+        */
+
+        posts.map(({
+            node
+        }) => {
+            createPage({
+                path: node.fields.slug,
+                component: path.resolve("./src/templates/blogPostTemplate.js"),
+                context: {
+                    slug: node.fields.slug
+                }
+            });
+        });
+
+        // Tag pages:
+        let tags = [];
+        // Iterate through each post, putting all found tags into `tags`
+        _.each(posts, edge => {
+            if (_.get(edge, 'node.frontmatter.tags')) {
+                tags = tags.concat(edge.node.frontmatter.tags);
+            }
+        });
+        // Eliminate duplicate tags
+        tags = _.uniq(tags);
+
+        // Make tag pages
+        tags.forEach(tag => {
+            createPage({
+                path: `/tags/${_.kebabCase(tag)}/`,
+                component: tagTemplate,
+                context: {
+                    tag,
+                },
+            });
+        });
     });
-
-    // Tag pages:
-    let tags = [];
-    // Iterate through each post, putting all found tags into `tags`
-    _.each(posts, edge => {
-      if (_.get(edge, 'node.frontmatter.tags')) {
-        tags = tags.concat(edge.node.frontmatter.tags);
-      }
-    });
-    // Eliminate duplicate tags
-    tags = _.uniq(tags);
-
-    // Make tag pages
-    tags.forEach(tag => {
-      createPage({
-        path: `/tags/${_.kebabCase(tag)}/`,
-        component: tagTemplate,
-        context: {
-          tag,
-        },
-      });
-    });
-  });
 };
-
 
 
 
@@ -89,4 +118,3 @@ exports.onCreatePage = async ({ page, boundActionCreators }) => {
   });
 };
 */
-
