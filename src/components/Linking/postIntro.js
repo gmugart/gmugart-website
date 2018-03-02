@@ -10,7 +10,6 @@ const PostLink = ({ post }) => (
     <p>{post.excerpt}</p>
     <Tags list={post.frontmatter.tags}></Tags>
     <h6>{post.frontmatter.date}</h6>
-    
   </div>
 );
 

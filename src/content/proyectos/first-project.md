@@ -1,5 +1,5 @@
 ---
-path: '/proyectos/my first post'
+path: '/portfolio/my first post'
 categoria: 'proyectos'
 date: '2017-11-07'
 title: 'My first blog post'

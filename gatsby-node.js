@@ -3,98 +3,138 @@ const path = require("path");
 const _ = require("lodash");
 
 
+
 exports.createPages = ({
-    boundActionCreators, graphql
+    graphql, boundActionCreators
 }) => {
     const {
         createPage
     } = boundActionCreators;
+    const blogPostTemplate = path.resolve("src/templates/blogListTemplate.js");
 
-    const blogPostTemplate = path.resolve("src/templates/blogTemplate.js");
     const tagTemplate = path.resolve('src/templates/tagTemplate.js');
 
-    return graphql(`
-    {
-      allMarkdownRemark(
-        sort: { order: DESC, fields: [frontmatter___date] }
-        limit: 1000
-      ) {
-        edges {
-          node {
-            frontmatter {
-              path
-              tags
-            }
-            fields {
-                slug
+    return new Promise((resolve, reject) => {
+        graphql(`
+{
+        posts: allMarkdownRemark(
+filter: {fileAbsolutePath: {regex: "\/blog/"}}
+          sort: { fields: [frontmatter___date], order: DESC }
+        ) {
+          edges {
+            node {
+              id
+              frontmatter {
+                title
+                path
+                date
+                tags
               }
+            excerpt(pruneLength: 280)
+            }
           }
         }
-      }
-    }
-  `).then(result => {
-        if (result.errors) {
-            return Promise.reject(result.errors);
+
+     proyectos: allMarkdownRemark(
+     filter: {fileAbsolutePath: {regex: "\/proyectos/"}}
+          sort: { fields: [frontmatter___date], order: DESC }
+        ) {
+          edges {
+            node {
+              id
+              frontmatter {
+                title
+                path
+                date
+                tags
+              }
+            excerpt(pruneLength: 280)
+            }
+          }
         }
-
-        const posts = result.data.allMarkdownRemark.edges;
-
-        //create paginated pages
-        createPaginatedPages({
-            edges: posts,
-            createPage: createPage,
-            pageTemplate: "src/templates/index.js",
-            pageLength: 1, // This is optional and defaults to 10 if not used
-            pathPrefix: "", // This is optional and defaults to an empty string if not used
-            context: {} // This is optional and defaults to an empty object if not used
-        });
-
-        /* Create post detail pages
-        posts.forEach(({
-            node
-        }) => {
-            createPage({
-                path: node.frontmatter.path,
-                component: blogPostTemplate,
+  
+      }
+    `).then(result => {
+           //create posts
+            createPaginatedPages({
+                edges: result.data.posts.edges,
+                createPage: createPage,
+                pageTemplate: blogPostTemplate,
+                pageLength: 2, // This is optional and defaults to 10 if not used
+                pathPrefix: "blog", // This is optional and defaults to an empty string if not used
+                context: {} // This is optional and defaults to an empty object if not used
             });
-        });
-        */
+            result.data.posts.edges.map(({
+                node
+            }) => {
+                createPage({
+                    path: node.frontmatter.path,
+                    component: path.resolve("./src/templates/blogPostTemplate.js"),
+                    context: {
+                        //slug: node.fields.slug
+                        //path: node.frontmatter.path
+                    }
+                });
+            });
+            
+            //create proyects
+             createPaginatedPages({
+                edges: result.data.proyectos.edges,
+                createPage: createPage,
+                pageTemplate: blogPostTemplate,
+                pageLength: 2, // This is optional and defaults to 10 if not used
+                pathPrefix: "portfolio/proyectos", // This is optional and defaults to an empty string if not used
+                context: {} // This is optional and defaults to an empty object if not used
+            });
+            result.data.proyectos.edges.map(({
+                node
+            }) => {
+                createPage({
+                    path: node.frontmatter.path,
+                    component: path.resolve("./src/templates/blogPostTemplate.js"),
+                    context: {
+                        //slug: node.fields.slug
+                        //path: node.frontmatter.path
+                    }
+                });
+            });
 
-        posts.map(({
-            node
-        }) => {
-            createPage({
-                path: node.fields.slug,
-                component: path.resolve("./src/templates/blogPostTemplate.js"),
-                context: {
-                    slug: node.fields.slug
+
+            //------Tag pages START
+            const posts = result.data.posts.edges;
+            let tags = [];
+            // Iterate through each post, putting all found tags into `tags`
+            _.each(posts, edge => {
+                if (_.get(edge, 'node.frontmatter.tags')) {
+                    tags = tags.concat(edge.node.frontmatter.tags);
                 }
             });
-        });
+            // Eliminate duplicate tags
+            tags = _.uniq(tags);
 
-        // Tag pages:
-        let tags = [];
-        // Iterate through each post, putting all found tags into `tags`
-        _.each(posts, edge => {
-            if (_.get(edge, 'node.frontmatter.tags')) {
-                tags = tags.concat(edge.node.frontmatter.tags);
-            }
-        });
-        // Eliminate duplicate tags
-        tags = _.uniq(tags);
-
-        // Make tag pages
-        tags.forEach(tag => {
-            createPage({
-                path: `/tags/${_.kebabCase(tag)}/`,
-                component: tagTemplate,
-                context: {
-                    tag,
-                },
+            // Make tag pages
+            tags.forEach(tag => {
+                createPage({
+                    path: `/tags/${_.kebabCase(tag)}/`,
+                    component: tagTemplate,
+                    context: {
+                        tag,
+                    },
+                });
             });
+            //------Tag pages END
+
+
+            resolve();
         });
     });
 };
+
+
+
+
+
+
 
 
 
